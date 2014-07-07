@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NearShore Video</title>
+    <link rel="stylesheet" type="text/css" href="css/index.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery-ui-1.10.4.css"/>
+
+    <script src="js/vendor/jquery.min.js"></script>
+    <script src="js/vendor/underscore-min.js"></script>
+    <script src="js/vendor/swig.js"></script>
+    <script src="js/vendor/backbone-min.js"></script>
+    <script src="js/vendor/jquery-ui-1.10.4.min.js"></script>
+    <script src="js/vendor/handlebars-v1.3.0.js"></script>
+    <script src="js/vendor/jquery.lazyload.min.js" text="text/javascript"></script>
+  </head>
+    <body>
+        <div class="wrapper">
+            <header class="header">
+                <div class="container">
+                    <a href='#' title="NearShore" class='logo'>
+                        <img src="logo.svg" alt="Kiwi standing on oval"></img>
+                    </a>
+                    <span style='float:right'>
+                        <a href='#' title='Courses'   class='Courses'>Courses</a>
+                        <a href='#' title='Hours'   class='Hours'>Hours</a>
+                        <a href='#' title='Conferences'   class='Conferences'>Conferences</a>
+                        <a href='#' title='Videos'   class='Videos'>Videos</a>
+                        <a href='#' title='Podcast' class='Podcast'>Podcast</a>
+                        <a href='#' title='Login'   class='Login'>Login</a>
+                    </span>
+                </div>
+            </header>
+
+            <div class="ui-search">
+                        <input type="text" class="input-text" name="fname" placeholder="Search..."></input>
+                        <input type="submit" class="submit" value="Submit"></input>
+            </div>
+           
+            <div id="videoDisplay">
+                <ul class="vid-list"></ul>
+            </div>
+
+            <div id="single_video_display">
+            </div>
+        </div>
+    </body>
+
+            <!-- TEMPLATES -->
+            <script type='text/template' id="single_video_element">
+               <iframe id="ytplayer" type="text/html"
+                src='{{videoID}}'
+                frameborder="0"/>
+            </script>
+            
+            <script type='text/template' id="video_element">
+                <li class="vid-li"><a href="#view/{{id}}"><img class="lazy" src="{{videoImageID}}" width="320" height="240"></img></a>
+                <div class="video-title">
+                    <p>{{title['$t']}}</p> 
+                </div>
+                <span class="date">
+                    <font>{{published}}
+                    </font>
+                </span>
+                </li>
+            </script>
+
+            <!-- backbone -->
+            <script type="text/javascript">
+            var videoID;
+            //MODELS//
+                VideoElement  = Backbone.Model.extend({ idAttribute:"_id", videoID:'http://www.youtube.com/embed/abGSN_ti5yg',videoImageID:'http://img.youtube.com/vi/abGSN_ti5yg/0.jpg'});
+
+            //COLLECTIONS//
+                VideoElements = Backbone.Collection.extend({ 
+                    model: VideoElement,
+                    el: 'body',
+                    initialize: function(){
+                     //   this.src = "http://www.youtube.com/embed/";
+                        this.src    = 'http://img.youtube.com/vi/'
+                    },
+                    render: function(data){
+                        self.feed = data.feed;
+                        var entries = feed.entry || [];
+                        var amount  = 15;
+
+                        this.removePreviousVideos();
+                        for (var i = 0; i < amount; i++)
+                        {
+                            var entry = entries[i];
+                            var playCount = 0 + ' views';
+
+                            if(entry.yt$statistics != null)
+                                playCount = entry.yt$statistics.viewCount.valueOf() + ' views';
+                            entry.videoImageID = this.src + JSON.stringify(entry.id).split("video:")[1].replace('}','').replace('"','') + '/0.jpg'; 
+                            entry.id = entry.media$group.yt$videoid['$t'];
+                            entry.published = entry.published['$t'].split('T')[0];
+                            this.add(entry);
+                        }
+                    },
+                    removePreviousVideos : function(){
+                        this.reset();
+                        $(this.el).find('li.vid-li').remove();
+
+                    }
+                });
+
+                //VIEWS//
+                VideosView     = Backbone.View.extend({
+                    el:'body',
+                    events:{
+                        'click input.submit':'searchYoutube'
+                    },
+                    initialize :function(){
+                        var self    = this;
+                        this.Videos = new VideoElements();
+                        this.search = 'tanks';
+                        this.templateElement = swig.compile($("#video_element").html());
+
+                        this.Videos.on('add', function (element) {
+                            self.$el.find('ul.vid-list').append(self.templateElement(element.toJSON()));
+
+                        });
+
+                        this.render(this);
+                    },
+                    render :function(v){
+                        if(document.getElementById('#youtubeScript'))
+                            document.getElementById('#youtubeScript').remove();
+
+                        var string = 'http://gdata.youtube.com/feeds/api/videos?v=2&alt=json&q=' + this.search + '&callback=vid.showMyVideos';
+                        self.vid   = v;
+                        var script = document.createElement('script');
+                        script.setAttribute('id','youtubeScript');
+                        script.setAttribute('type', 'text/javascript');
+                        script.setAttribute('src', string);
+                        document.documentElement.firstChild.appendChild(script);
+
+                    },
+                    showMyVideos : function(data)
+                    {
+                        this.Videos.render(data);
+                    },
+                    searchYoutube : function(e){
+                        this.search = $('.input-text').val();
+                        this.render(this);
+                    }
+                });
+
+                SingleVidView     = Backbone.View.extend({
+                    el:'body',
+
+                    initialize :function(){
+                        var self     = this;
+                        this.te      = swig.compile($("#single_video_element").html());
+                    },
+                    render :function(id){
+                        this.clear();
+                        videoID  = 'http://www.youtube.com/embed/';
+                        videoID += id;
+
+                        if(document.getElementById('#youtubeScript'))
+                            document.getElementById('#youtubeScript').remove();
+
+                        this.te = swig.compile($("#single_video_element").html());
+                        $('div#single_video_display').append(this.te);
+                    },
+                    clear: function(){
+                         $('iframe#ytplayer').remove();
+                    }
+                });
+
+             //ROUTER//
+                var Router = Backbone.Router.extend ({
+                    routes: {
+                        ''         : 'home',
+                        'view/:id' : 'view',
+                        'category/:name/p:page': 'showCategory'
+                    },
+                    initialize : function(){
+                        this.v = new VideosView();
+                        this.s = new SingleVidView();
+                    },
+                    home: function () {
+                     //   alert('you are viewing home page');
+                        this.s.clear();
+                        this.v.render(this.v);
+
+                    },
+                    view: function (id) {
+                        this.s.clear();
+                        this.v.Videos.removePreviousVideos();
+
+                       // alert('you are viewing an image with id of ' + id);
+                        this.s.render(id);
+                    },
+                    showCategory: function (name,page) {
+                        alert('showing category' + name);
+                    }
+                });
+
+            router = new Router();
+            Backbone.history.start(); 
+        </script> <!--Backbone -->
+
+
+</html>
+ 
+
