@@ -125,6 +125,22 @@
 
                         this.render(this);
                     },
+                    
+                    //this code can be run from a backbone collection, and use as ajax request
+                    // url = http://gdata.youtube.com/feeds/api/videos
+                    //
+                    // params
+                    // v = 2
+                    // alt = json
+                    // q = term_to_search
+                    // callback <- no needed
+                    // wee need 2 more params
+                    // start-index = 1    <- Start point
+                    // max-results = 50   <- Offset
+                    
+                    // start-index is used when you have scroll functionallity 
+                    // like infite scroll on the second ajax request
+                    // start-index = 51 this means 2nd page
                     render :function(v){
                         if(document.getElementById('#youtubeScript'))
                             document.getElementById('#youtubeScript').remove();
